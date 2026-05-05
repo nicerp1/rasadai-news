@@ -1,60 +1,27 @@
 name: Scrape and Update News
 
 on:
-  # اجرا هر 6 ساعت
   schedule:
-    - cron: '0 */6 * * *'
-  
-  # اجرای دستی
-  workflow_dispatch:
-  
-  # اجرا هنگام push
-  push:
-    branches: [main]
+    # هر ۴ ساعت یکبار اجرا می‌شود (برای تست می‌توانید زمان را کمتر کنید)
+    - cron: '0 */4 * * *'
+  workflow_dispatch: # اجازه اجرای دستی
 
 jobs:
-  scrape-news:
+  scrape:
     runs-on: ubuntu-latest
-    
     steps:
-      # 1. چک‌اوت کد
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
-      
-      # 2. نصب Python
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-      
-      # 3. نصب وابستگی‌ها
+          python-version: '3.10' # نسخه پایتون را مشخص کنید
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      
-      # 4. اجرای اسکریپر
-      - name: Run news scraper
-        run: |
-          python -m scraper.scraper
-      
-      # 5. فرمت‌دهی و ترجمه
-      - name: Format and translate news
-        run: |
-          python -m scraper.news_formatter
-      
-      # 6. کامیت و پوش
-      - name: Commit and push changes
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "GitHub Actions Bot"
-          
-          # بررسی تغییرات
-          if git diff --stat | grep -q news.json; then
-            echo "📰 تغییراتی در news.json وجود دارد"
-            git add news.json
-            git commit -m "🔄 آپدیت اخبار - $(date +'%Y-%m-%d %H:%M')"
-            git push
-          else
-            echo "ℹ️ تغییری در news.json وجود ندارد"
-          fi
+          pip install feedparser requests beautifulsoup4
+
+      - name: Run scraper
+        run: python scraper.py
