@@ -8,15 +8,20 @@ from bs4 import BeautifulSoup
 from typing import List, Dict, Optional
 import time
 import json
-# فرض بر این است که config.py در همان پوشه قرار دارد
+import sys
+import os
+
+# اضافه کردن مسیر فعلی به مسیر ماژول‌ها
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 try:
     from config import RSS_FEEDS, IRAN_KEYWORDS, TAG_KEYWORDS, URGENCY_KEYWORDS, SENTIMENT_KEYWORDS
 except ImportError:
-    print("خطا: فایل config.py یافت نشد. لطفاً فایل config.py را ایجاد کنید.")
-    exit(1)
+    print("خطا: فایل config.py یافت نشد. لطفاً مطمئن شوید فایل config.py در کنار scraper.py است.")
+    sys.exit(1)
 
 class NewsScraper:
-    # اصلاح ۱: استفاده از دو آندرلاین برای متد سازنده
+    # اصلاح ۱: دو آندرلاین در ابتدا و انتهای init
     def __init__(self):
         self.articles = []
         self.session = requests.Session()
@@ -33,8 +38,11 @@ class NewsScraper:
         """پاکسازی تگ‌های HTML"""
         if not html:
             return ""
-        soup = BeautifulSoup(html, 'html.parser')
-        return soup.get_text(separator=' ', strip=True)
+        try:
+            soup = BeautifulSoup(html, 'html.parser')
+            return soup.get_text(separator=' ', strip=True)
+        except Exception:
+            return html
 
     def extract_image(self, entry) -> Optional[str]:
         """استخراج تصویر از خبر"""
@@ -64,7 +72,9 @@ class NewsScraper:
         ]
         for fmt in formats:
             try:
-                dt = datetime.strptime(date_str.replace('Z', '+0000'), fmt)
+                # اصلاح کوچک برای هندل کردن Z
+                clean_date = date_str.replace('Z', '+0000')
+                dt = datetime.strptime(clean_date, fmt)
                 return dt.timestamp()
             except:
                 continue
@@ -86,7 +96,6 @@ class NewsScraper:
                 if not self.is_iran_related(title, summary):
                     continue
                 
-                # ساخت آبجکت با قالب دقیق JSON شما
                 article = {
                     "title_fa": "",
                     "title_en": title,
@@ -120,7 +129,6 @@ class NewsScraper:
         """محاسبه فوریت خبر"""
         text = (title + " " + summary).lower()
         score = 5
-        # بررسی کلیدهای امن برای جلوگیری از خطا در صورت عدم تعریف
         high_keywords = URGENCY_KEYWORDS.get('high', [])
         medium_keywords = URGENCY_KEYWORDS.get('medium', [])
         
@@ -174,7 +182,7 @@ class NewsScraper:
         print("💾 فایل news.json ذخیره شد")
         return unique_articles
 
-# اصلاح ۲: استفاده از دو آندرلاین برای متغیر خاص __name__
+# اصلاح ۲: دو آندرلاین در ابتدا و انتهای name
 if __name__ == "__main__":
     scraper = NewsScraper()
     articles = scraper.scrape_all()
